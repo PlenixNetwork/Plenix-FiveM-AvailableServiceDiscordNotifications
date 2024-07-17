@@ -1,6 +1,6 @@
 Easy Discord Available Service Notification
 Description:
-The Easy Discord Available Service Notification script for FiveM is designed to notify a Discord channel when certain jobs are available within the game. The script uses webhooks to send messages to Discord and supports multiple job configurations, customizable notification systems, and cooldown periods between notifications to prevent spam.
+The Easy Discord Available Service Notification script for FiveM ESX is designed to notify a Discord channel when certain jobs are available within the game. The script uses webhooks to send messages to Discord and supports multiple job configurations, customizable notification systems, and cooldown periods between notifications to prevent spam.
 
 Features:
 - Multiple Job Configurations: Customize webhooks, command names, bot usernames, bot avatars, and messages for different jobs.
