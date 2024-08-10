@@ -1,8 +1,10 @@
-Easy Discord Available Service Notification
+Easy Discord Available Service Notification ESX/QBCore
 Description:
 The Easy Discord Available Service Notification script for FiveM ESX is designed to notify a Discord channel when certain jobs are available within the game. The script uses webhooks to send messages to Discord and supports multiple job configurations, customizable notification systems, and cooldown periods between notifications to prevent spam.
 
 Features:
+- Compatibility with ESX/QBCore
+- Direct compatibility with ESX/QBCore menu dialog for send the webhook.
 - Multiple Job Configurations: Customize webhooks, command names, bot usernames, bot avatars, and messages for different jobs.
 - Cooldown Management: Configurable delay for each job to prevent repeated notifications within a specified time period.
 - Customizable Notification System: Supports default, okokNotify, origen_notify, and custom notification systems for in-game messages.
