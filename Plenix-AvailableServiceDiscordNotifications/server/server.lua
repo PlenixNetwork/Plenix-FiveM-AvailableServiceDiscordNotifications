@@ -1,15 +1,48 @@
 -- server/server.lua
 
-ESX = exports["es_extended"]:getSharedObject()
+local ESX, QBCore
+
+if Config.Framework == 'esx' then
+    ESX = exports["es_extended"]:getSharedObject()
+elseif Config.Framework == 'qbcore' then
+    QBCore = exports['qb-core']:GetCoreObject()
+end
 
 local jobCooldowns = {}
 
-Citizen.CreateThread(function()
-    while ESX == nil do
-        TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
-        Citizen.Wait(0)
+-- Load the utility functions
+local utilsContent = LoadResourceFile(GetCurrentResourceName(), 'utils.lua')
+assert(load(utilsContent))()
+
+local Locales = loadLocale(Config.Locale)
+
+local function _U(str, ...)
+    if Locales and Locales[str] then
+        if select('#', ...) > 0 then
+            return string.format(Locales[str], ...)
+        else
+            return Locales[str]
+        end
+    else
+        return 'Translation [' .. Config.Locale .. '][' .. str .. '] does not exist'
     end
-end)
+end
+
+if Config.Framework == 'esx' then
+    Citizen.CreateThread(function()
+        while ESX == nil do
+            TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+            Citizen.Wait(0)
+        end
+    end)
+elseif Config.Framework == 'qbcore' then
+    Citizen.CreateThread(function()
+        while QBCore == nil do
+            TriggerEvent('QBCore:GetObject', function(obj) QBCore = obj end)
+            Citizen.Wait(0)
+        end
+    end)
+end
 
 local function notify(source, title, message, messageType)
     messageType = messageType or 'info'
@@ -29,33 +62,41 @@ local function notify(source, title, message, messageType)
     elseif Config.NotificationSystem == 'custom' then
         -- Custom notification logic here
     else
-        -- Default ESX notification
         TriggerClientEvent('chat:addMessage', source, { args = { title, message } })
     end
 end
 
--- Function to send a message to Discord
-local function sendToDiscord(webhookURL, botUsername, botAvatarURL, message)
-    -- Data to send to the webhook
+local function sendToDiscord(source, webhookURL, botUsername, botAvatarURL, message)
+    -- If DevMode is enabled, use the DevWebhookURL
+    if Config.DevMode then
+        webhookURL = Config.DevWebhookURL
+    end
+
     local data = {
         ["content"] = message,
         ["username"] = botUsername,
         ["avatar_url"] = botAvatarURL
     }
-    
-    -- Convert data to JSON
     local jsonData = json.encode(data)
 
-    -- Configure HTTP request
-    PerformHttpRequest(webhookURL, function(err, text, headers) 
-        if Config.DebugMode then
-            print("Discord Webhook Response Error: " .. tostring(err))
-            print("Discord Webhook Response Text: " .. tostring(text))
+    PerformHttpRequest(webhookURL, function(err, text, headers)
+        -- err should be 200 or 204 if the request was successful
+        if err == 200 or err == 204 then
+            if Config.DebugMode then
+                print("Successfully sent message to Discord: " .. text)
+            end
+            -- Notify the user of the success
+            notify(source, 'System', _U('availability_sent'), 'success')
+        else
+            if Config.DebugMode then
+                print("Error sending message to Discord: HTTP " .. tostring(err) .. " - " .. tostring(text))
+            end
+            -- Notify the user of the error
+            notify(source, 'Error', _U('discord_error'), 'error')
         end
     end, 'POST', jsonData, { ['Content-Type'] = 'application/json' })
 end
 
--- Handle the event sent from the client
 RegisterServerEvent('sendServiceAvailability')
 AddEventHandler('sendServiceAvailability', function(job, number)
     local source = source
@@ -65,29 +106,22 @@ AddEventHandler('sendServiceAvailability', function(job, number)
         local cooldownTime = jobConfig.Delay * 60
 
         if jobCooldowns[job] == nil or (currentTime - jobCooldowns[job]) >= cooldownTime then
-            -- Update the cooldown
             jobCooldowns[job] = currentTime
 
-            -- Build the message to send
             local message = jobConfig.AvailableServiceMessage .. number
 
             if Config.DebugMode then
                 print("Sending message to Discord: " .. message)
             end
 
-            -- Send the message to Discord
-            sendToDiscord(jobConfig.WebhookURL, jobConfig.BotUsername, jobConfig.BotAvatarURL, message)
+            sendToDiscord(source, jobConfig.WebhookURL, jobConfig.BotUsername, jobConfig.BotAvatarURL, message)
 
-            -- Notify the user in the game
-            notify(source, 'System', 'Availability sent to Discord.', 'success')
         else
-            -- Calculate remaining time
             local remainingTime = cooldownTime - (currentTime - jobCooldowns[job])
             local minutes = math.floor(remainingTime / 60)
             local seconds = remainingTime % 60
 
-            -- Notify the user about the cooldown
-            notify(source, 'Error', string.format('You must wait %d minutes and %d seconds to send another message.', minutes, seconds), 'error')
+            notify(source, 'Error', string.format(_U('cooldown_message'), minutes, seconds), 'error')
         end
     else
         print("Invalid job configuration: " .. job)

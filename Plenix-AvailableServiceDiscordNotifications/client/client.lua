@@ -1,13 +1,46 @@
 -- client/client.lua
 
-ESX = exports["es_extended"]:getSharedObject()
+local ESX, QBCore
 
-Citizen.CreateThread(function()
-    while ESX == nil do
-        TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
-        Citizen.Wait(0)
+if Config.Framework == 'esx' then
+    ESX = exports["es_extended"]:getSharedObject()
+elseif Config.Framework == 'qbcore' then
+    QBCore = exports['qb-core']:GetCoreObject()
+end
+
+-- Load the utility functions
+local utilsContent = LoadResourceFile(GetCurrentResourceName(), 'utils.lua')
+assert(load(utilsContent))()
+
+local Locales = loadLocale(Config.Locale)
+
+local function _U(str, ...)
+    if Locales and Locales[str] then
+        if select('#', ...) > 0 then
+            return string.format(Locales[str], ...)
+        else
+            return Locales[str]
+        end
+    else
+        return 'Translation [' .. Config.Locale .. '][' .. str .. '] does not exist'
     end
-end)
+end
+
+if Config.Framework == 'esx' then
+    Citizen.CreateThread(function()
+        while ESX == nil do
+            TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+            Citizen.Wait(0)
+        end
+    end)
+elseif Config.Framework == 'qbcore' then
+    Citizen.CreateThread(function()
+        while QBCore == nil do
+            TriggerEvent('QBCore:GetObject', function(obj) QBCore = obj end)
+            Citizen.Wait(0)
+        end
+    end)
+end
 
 local function notify(title, message, messageType)
     messageType = messageType or 'info'
@@ -27,31 +60,64 @@ local function notify(title, message, messageType)
     elseif Config.NotificationSystem == 'custom' then
         -- Custom notification logic here
     else
-        -- Default ESX notification
         TriggerEvent('chat:addMessage', { args = { title, message } })
     end
 end
 
 for job, config in pairs(Config.Jobs) do
-    -- Register the command for each job
     RegisterCommand(config.CommandName, function(source, args, rawCommand)
-        -- Get the number from the command
-        local number = tonumber(args[1])
-
-        if number then
-            -- Check the player's job
+        if Config.Framework == 'esx' then
+            -- Check the player's job for ESX
             ESX.TriggerServerCallback('esx:getPlayerData', function(playerData)
                 if playerData.job.name == job then
-                    -- Send the number to the server
-                    TriggerServerEvent('sendServiceAvailability', job, number)
+                    -- Open ESX dialog to input number
+                    ESX.UI.Menu.Open('dialog', GetCurrentResourceName(), 'enter_number', {
+                        title = _U('enter_number')
+                    }, function(data, menu)
+                        local number = tonumber(data.value)
+                        if number then
+                            -- Send the number to the server
+                            TriggerServerEvent('sendServiceAvailability', job, number)
+                            menu.close()
+                        else
+                            notify('System', _U('provide_valid_number'), 'error')
+                        end
+                    end, function(data, menu)
+                        menu.close()
+                    end)
                 else
-                    -- Notify the user they don't have permission
-                    notify('System', 'You do not have permission to use this command.', 'error')
+                    notify('System', _U('no_permission'), 'error')
                 end
             end)
-        else
-            -- Notify the user in the game about the error
-            notify('System', 'Please provide a valid number.', 'error')
+        elseif Config.Framework == 'qbcore' then
+            -- Check the player's job for QBCore
+            local PlayerData = QBCore.Functions.GetPlayerData()
+            if PlayerData.job.name == job then
+                -- Open QBCore input to input number
+                local dialog = exports['qb-input']:ShowInput({
+                    header = _U('enter_number'),
+                    submitText = "Submit",
+                    inputs = {
+                        {
+                            text = _U('enter_number'),
+                            name = "number",
+                            type = "number",
+                            isRequired = true
+                        }
+                    }
+                })
+                if dialog then
+                    local number = tonumber(dialog.number)
+                    if number then
+                        -- Send the number to the server
+                        TriggerServerEvent('sendServiceAvailability', job, number)
+                    else
+                        notify('System', _U('provide_valid_number'), 'error')
+                    end
+                end
+            else
+                notify('System', _U('no_permission'), 'error')
+            end
         end
     end, false)
 end
