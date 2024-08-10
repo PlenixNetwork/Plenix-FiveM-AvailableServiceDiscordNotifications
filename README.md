@@ -7,9 +7,11 @@ Features:
 - Cooldown Management: Configurable delay for each job to prevent repeated notifications within a specified time period.
 - Customizable Notification System: Supports default, okokNotify, origen_notify, and custom notification systems for in-game messages.
 - Debug Mode: Enable debug mode to print additional information to the console for troubleshooting.
+- Dev Mode: Enable development mode to send the webhooks to an specific general Discord channel webhook while you are developing.
 
 Configuration:
-The script is configured through the config.lua file, where you can specify settings for each job and general settings such as the notification system and debug mode.
+- The script is configured through the config.lua file, where you can specify settings for each job and general settings such as the notification system and debug mode.
+- You can add more translation files by "locales" folder.
 
 Installation:
 1. Download the script: Download the script and extract it into your resources folder.
