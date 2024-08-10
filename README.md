@@ -23,7 +23,7 @@ Installation:
 Commands:
 - Each job has its own command specified in the config.lua file. Players with the corresponding job can use the command to notify Discord of their availability.
 
-Example: /available_police [number]
+Example: /available_police
 
 Notification Systems:
 - The script supports different notification systems for in-game messages:
